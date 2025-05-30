@@ -20,13 +20,15 @@ export interface NetworkState {
   // Final summary of what was accomplished
   final_summary?: string;
   
-  // === Result States ===
-  // Specifies the type of result produced ("chart" or "component")
-  result_type?: "chart" | "component";
-  // Stores chart configuration and data when a chart is generated
-  chart_result?: any;
-  // Stores UI component configuration when a UI component is generated
-  ui_result?: any;
+  // === Email Result States ===
+  // Specifies the type of email operation performed
+  email_action?: "send" | "draft" | "read" | "search" | "compose" | "list";
+  // Stores email operation results
+  email_result?: any;
+  // Email operation status
+  email_status?: "success" | "error" | "pending";
+  // Email operation message
+  email_message?: string;
   
   // === Completion States ===
   // Boolean flag indicating if an agent has finished its work
@@ -36,12 +38,11 @@ export interface NetworkState {
 }
 
 /**
- * ShadCN Assistant Network
+ * Email Support System Network
  * 
- * A multi-agent system that can generate charts and UI components.
+ * A multi-agent system focused on email management and communications.
  * The network consists of:
- * - Chart Agent: Specializes in data visualization and chart generation
- * - UI Agent: Specializes in creating UI components using shadcn/ui
+ * - Email Agent: Specializes in Gmail operations (send, read, search, manage)
  * - Routing Agent: Analyzes requests and routes them to the appropriate specialist
  * 
  * The network uses Anthropic's Claude model for natural language processing
@@ -49,11 +50,8 @@ export interface NetworkState {
  */
 export const assistantNetwork = createNetwork<NetworkState>({
   name: "Kush's Support System",
-  // Array of specialist agents that can be invoked by the router
   agents: [emailAgent],
-  // The routing agent that analyzes requests and directs them to specialists
   router: routingAgent,
-  // Default model configuration used by agents that don't specify their own model
   defaultModel: anthropic({
     model: "claude-sonnet-4-20250514",
     apiKey: process.env.ANTHROPIC_API_KEY,

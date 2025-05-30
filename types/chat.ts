@@ -5,9 +5,9 @@ export interface Message {
 }
 
 export interface ToolCall {
-  type: 'chart' | 'component';
+  type: 'chart' | 'component' | 'email';
   name: string;
-  data: ChartData | ComponentData;
+  data: ChartData | ComponentData | EmailData;
 }
 
 export interface ChartData {
@@ -26,6 +26,22 @@ export interface ComponentData {
   components?: Array<UIComponent>;
   layout?: string;
   theme?: string;
+}
+
+export interface EmailData {
+  action: 'send' | 'draft' | 'read' | 'search' | 'compose';
+  to?: string[];
+  cc?: string[];
+  bcc?: string[];
+  subject?: string;
+  body?: string;
+  htmlBody?: string;
+  attachments?: string[];
+  messageId?: string;
+  searchQuery?: string;
+  results?: any[];
+  status?: string;
+  message?: string;
 }
 
 export interface UIComponent {

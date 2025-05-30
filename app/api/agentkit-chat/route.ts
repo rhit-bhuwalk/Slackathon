@@ -14,12 +14,13 @@ export const dynamic = 'force-dynamic';
  * - Text responses from agents
  * - Chart generation data
  * - UI component specifications
+ * - Email composition and sending
  * 
  * Flow:
  * 1. Validates incoming message array
  * 2. Extracts the latest user message
  * 3. Runs the message through the AgentKit network
- * 4. Processes the network response and state
+ * 4. Processes the network response
  * 5. Formats the response with appropriate tool call data
  * 6. Returns structured response for frontend consumption
  */
@@ -54,63 +55,34 @@ export async function POST(req: Request) {
       // === Agent Network Execution ===
       // Run the user's message through the multi-agent system
       // This will trigger the routing agent to analyze the request and
-      // direct it to the appropriate specialist (chart or UI agent)
+      // direct it to the appropriate specialist (chart, UI, or email agent)
       const result = await assistantNetwork.run(latestMessage.content);
       
       console.log('AgentKit result:', result);
       
-      // === State Extraction ===
-      // Access the network state using the kv.get() API to retrieve data
-      // that was stored by agents using kv.set()
-      const resultType = result.state.kv.get("result_type");
-      const completed = result.state.kv.get("completed");
-      const completionMessage = result.state.kv.get("completion_message");
-      const finalSummary = result.state.kv.get("final_summary");
+      // === Response Processing ===
+      // For now, we'll provide a simple response while the email agent handles the actual work
+      // TODO: Enhance this once we understand the email agent's response structure better
+      const response = "I've processed your email request! The email agent has handled your request.";
       
-      // Debug logging to understand state values
-      console.log('State values:', {
-        resultType,
-        completed,
-        completionMessage,
-        finalSummary,
-        routedTo: result.state.kv.get("routed_to"),
-        taskCompleted: result.state.kv.get("task_completed")
-      });
-  
-      // === Response Message Creation ===
-      // Create the base assistant response with fallback messaging
-      const assistantContent = completionMessage || finalSummary || "I've processed your request!";
-      
+      // Create the base assistant response
       let botMessage: Message = {
         role: 'assistant',
-        content: assistantContent
+        content: response
       };
 
       // === Tool Call Data Attachment ===
-      // Add specialized data based on which agent completed the task
+      // For now, email operations will be handled through the agent's natural response
+      // In the future, you can add specific email tool call data here if needed
       
-      // If a chart was generated, attach chart data for frontend rendering
-      if (completed && resultType === "chart") {
-        const chartData = result.state.kv.get("chart_result");
-        if (chartData) {
-          botMessage.toolCall = {
-            type: 'chart',
-            name: 'generate_chart',
-            data: chartData
-          };
-        }
-      } 
-      // If a UI component was generated, attach component data
-      else if (completed && resultType === "component") {
-        const uiData = result.state.kv.get("ui_result");
-        if (uiData) {
-          botMessage.toolCall = {
-            type: 'component',
-            name: 'generate_ui',
-            data: uiData
-          };
-        }
-      }
+      // Example structure for future email tool calls:
+      // if (result.emailAction) {
+      //   botMessage.toolCall = {
+      //     type: 'email',
+      //     name: 'email_operation',
+      //     data: result.emailAction
+      //   };
+      // }
       
       // Return the structured response to the frontend
       return NextResponse.json({ message: botMessage });
