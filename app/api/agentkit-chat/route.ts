@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Message } from '@/types/chat';
-import { assistantNetwork } from '@/lib/agents/network';
+import { assistantNetwork } from '@/lib/network';
 
 // Force dynamic rendering for this route to ensure fresh responses
 export const dynamic = 'force-dynamic';
@@ -60,13 +60,23 @@ export async function POST(req: Request) {
       console.log('AgentKit result:', result);
       
       // === State Extraction ===
-      // Access the network state using the new state.data API
-      // (replaces deprecated kv.get() methods)
-      const resultType = result.state.data.result_type;
-      const completed = result.state.data.completed;
-      const completionMessage = result.state.data.completion_message;
-      const finalSummary = result.state.data.final_summary;
+      // Access the network state using the kv.get() API to retrieve data
+      // that was stored by agents using kv.set()
+      const resultType = result.state.kv.get("result_type");
+      const completed = result.state.kv.get("completed");
+      const completionMessage = result.state.kv.get("completion_message");
+      const finalSummary = result.state.kv.get("final_summary");
       
+      // Debug logging to understand state values
+      console.log('State values:', {
+        resultType,
+        completed,
+        completionMessage,
+        finalSummary,
+        routedTo: result.state.kv.get("routed_to"),
+        taskCompleted: result.state.kv.get("task_completed")
+      });
+  
       // === Response Message Creation ===
       // Create the base assistant response with fallback messaging
       const assistantContent = completionMessage || finalSummary || "I've processed your request!";
@@ -81,7 +91,7 @@ export async function POST(req: Request) {
       
       // If a chart was generated, attach chart data for frontend rendering
       if (completed && resultType === "chart") {
-        const chartData = result.state.data.chart_result;
+        const chartData = result.state.kv.get("chart_result");
         if (chartData) {
           botMessage.toolCall = {
             type: 'chart',
@@ -92,7 +102,7 @@ export async function POST(req: Request) {
       } 
       // If a UI component was generated, attach component data
       else if (completed && resultType === "component") {
-        const uiData = result.state.data.ui_result;
+        const uiData = result.state.kv.get("ui_result");
         if (uiData) {
           botMessage.toolCall = {
             type: 'component',

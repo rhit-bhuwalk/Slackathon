@@ -1,7 +1,6 @@
 import { createNetwork, anthropic } from "@inngest/agent-kit";
-import { chartAgent } from "./chart-agent";
-import { uiAgent } from "./ui-agent";
-import { routingAgent } from "./routing-agent";
+import { routingAgent } from "./agents/routing-agent";
+import { emailAgent } from "./agents/email-agent";
 
 /**
  * Network State Interface
@@ -49,14 +48,15 @@ export interface NetworkState {
  * and maintains shared state to coordinate between agents.
  */
 export const assistantNetwork = createNetwork<NetworkState>({
-  name: "ShadCN Assistant Network",
+  name: "Kush's Support System",
   // Array of specialist agents that can be invoked by the router
-  agents: [chartAgent, uiAgent],
+  agents: [emailAgent],
   // The routing agent that analyzes requests and directs them to specialists
   router: routingAgent,
   // Default model configuration used by agents that don't specify their own model
   defaultModel: anthropic({
-    model: "claude-3-5-haiku-latest",
+    model: "claude-sonnet-4-20250514",
+    apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
       max_tokens: 1000,
     },

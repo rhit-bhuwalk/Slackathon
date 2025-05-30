@@ -56,6 +56,7 @@ Always route to exactly one agent based on the primary intent of the request.`,
   // Using Claude Haiku for fast routing decisions
   model: anthropic({
     model: "claude-3-5-haiku-latest",
+    apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
       max_tokens: 1000,
     },
