@@ -25,22 +25,38 @@ export const routingAgent = createRoutingAgent({
   description: "Routes user requests to appropriate specialist agents",
   
   // Detailed system prompt that defines the routing behavior and decision criteria
-  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, and manage Slack.
+  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, manage emails, help pick visualizations, provide data, clean data, and manage Slack.
 
 Your role is to analyze user requests and route them to the appropriate specialist agent:
 
 1. **Chart Agent** - Route here for:
-   - Data visualization requests
-   - Chart creation (bar, line, pie, area, radar, etc.)
-   - Graph generation
-   - Statistical visualizations
-   - Data analysis displays
+   - Direct chart creation when clean, prepared data is already available
+   - Final chart generation after data has been cleaned
+   - When prepared_chart_data exists in state
 
-2. **Slack Agent** - Route here for:
+2. **Chart Picker Agent** - Route here for:
+   - When user asks what type of chart they should use
+   - Questions about which visualization is best for their data
+   - Initial requests for data visualization (starts the pipeline)
+   - When user wants to understand chart schema/requirements
+
+3. **Data Agent** - Route here for:
+   - When user needs sample data for visualization
+   - Data generation requests
+   - After chart type is picked but before BEM cleaning
+   - When picked_chart exists but no raw data is available
+
+4. **BEM Data Cleaner Agent** - Route here for:
+   - After Data Agent has provided raw data
+   - When raw data needs to be transformed to match chart requirements
+   - Data cleaning and structuring tasks
+   - When both picked_chart and data_result exist
+
+5. **Slack Agent** - Route here for:
     - Slack channel listing
     - Slack conversation history retrieval
 
-3. **UI Agent** - Route here for:
+6. **UI Agent** - Route here for:
    - User interface creation
    - Component generation (forms, cards, modals, tables, etc.)
    - Layout design
@@ -49,13 +65,20 @@ Your role is to analyze user requests and route them to the appropriate speciali
    - Settings pages
    - Authentication interfaces
 
-Decision process:
-1. Analyze the user's request
-2. Determine if they want data visualization (charts) or interface components (UI)
-3. Route to the appropriate agent using the route_to_agent tool
-4. If the agent has completed their work, call the done tool
+DATA VISUALIZATION PIPELINE:
+1. User requests visualization → Chart Picker Agent (determines chart type & schema)
+2. Chart schema exists → Data Agent (generates or fetches raw data)
+3. Raw data available → BEM Data Cleaner Agent (creates pipeline & transforms data)
+4. Clean data ready → Chart Agent (generates the final visualization)
 
-Always route to exactly one agent based on the primary intent of the request.`,
+Decision process:
+1. Check the network state for existing results and progress
+2. For visualization requests, follow the pipeline sequence
+3. Route to the next appropriate agent in the workflow
+4. If the agent has completed their work, check if more steps are needed
+5. Call the done tool only when the entire pipeline is complete
+
+Always route to exactly one agent based on the current state and workflow progress.`,
   
   // Using Claude Haiku for fast routing decisions
   model: anthropic({
@@ -78,7 +101,7 @@ Always route to exactly one agent based on the primary intent of the request.`,
       name: "route_to_agent",
       description: "Route the request to the appropriate specialist agent",
       parameters: z.object({
-        agent: z.enum(["Chart Generator Agent", "UI Generator Agent", "Slack Agent"]).describe("The agent to route the request to"),
+        agent: z.enum(["Chart Generator Agent", "Chart Picker Agent", "BEM Data Cleaner Agent", "Data Agent", "Slack Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
         reasoning: z.string().describe("Explanation for why this agent was chosen")
       }),
       handler: async ({ agent, reasoning }, { network }) => {
@@ -132,55 +155,62 @@ Always route to exactly one agent based on the primary intent of the request.`,
       const chartResult = network?.state.kv.get("chart_result");
       const uiResult = network?.state.kv.get("ui_result");
       const conversationResult = network?.state.kv.get("conversation_result");
+      const pickedChart = network?.state.kv.get("picked_chart");
+      const dataResult = network?.state.kv.get("data_result");
+      const cleanedData = network?.state.kv.get("cleaned_data");
+      const preparedChartData = network?.state.kv.get("prepared_chart_data");
       
+      // Check for final results
       if (chartResult || uiResult || conversationResult) {
-        console.log('Task already completed - result exists in state');
+        console.log('Task already completed - final result exists in state');
         // Set completion flags
         network?.state.kv.set("completed", true);
         network?.state.kv.set("task_completed", true);
         if (chartResult) {
-          network?.state.kv.set("completion_message", "Chart has been successfully generated!");
-          network?.state.kv.set("final_summary", "Chart generation completed");
+          network?.state.kv.set("result_type", "chart");
         } else if (uiResult) {
-          network?.state.kv.set("completion_message", "UI component has been successfully generated!");
-          network?.state.kv.set("final_summary", "UI generation completed");
+          network?.state.kv.set("result_type", "component"); 
         } else if (conversationResult) {
-          network?.state.kv.set("completion_message", "Slack conversation history has been retrieved!");
-          network?.state.kv.set("final_summary", "Slack conversation retrieval completed");
+          network?.state.kv.set("result_type", "conversation");
         }
-        // Return undefined to stop routing
         return undefined;
       }
-      
-      // Extract the first tool call from the routing agent's response
-      const toolCall = result.toolCalls?.[0];
-      
-      // If the routing agent called route_to_agent, extract the target agent name
-      if (toolCall?.tool.name === "route_to_agent") {
-        // The agent name is in the original tool input from the LLM response
-        // We need to look at the actual tool use in the output
-        const toolUse = result.output?.find((o: any) => o.type === 'tool_call');
-        const agentName = (toolUse as any)?.tools?.[0]?.input?.agent as string | undefined;
-        
-        console.log('Tool use found:', toolUse);
-        console.log('Agent name extracted:', agentName);
-        console.log('Available agents:', Array.from(network?.agents.keys() || []));
-        
-        if (agentName) {
-          // Return array with agent name to invoke that specific agent
-          return [agentName] as string[];
-        }
-      }
-      
-      // If the routing agent called done, don't route anywhere (end the workflow)
-      if (toolCall?.tool.name === "done") {
-        console.log('Routing complete - done tool called');
+
+      // Process tool calls to determine routing
+      const routeCall = result.toolCalls?.find(call => call.tool.name === "route_to_agent");
+      const doneCall = result.toolCalls?.find(call => call.tool.name === "done");
+
+      if (doneCall) {
+        console.log('Done call detected - marking task as completed');
         return undefined;
       }
-      
-      // Default: don't route anywhere
-      console.log('No routing - no valid agent name found');
-      return undefined;
-    },
-  },
+
+      if (!routeCall) {
+        console.log('No route call found');
+        return undefined;
+      }
+
+      const agentName = (routeCall as any).arguments?.agent;
+      console.log(`Routing to agent: ${agentName}`);
+
+      // Map agent names to actual agent instances
+      switch (agentName) {
+        case "Chart Generator Agent":
+          return ["chartAgent"];
+        case "Chart Picker Agent":
+          return ["chartPickerAgent"];
+        case "BEM Data Cleaner Agent":
+          return ["bemDataCleanerAgent"];
+        case "Data Agent":
+          return ["dataAgent"];
+        case "Slack Agent":
+          return ["slackAgent"];
+        case "UI Generator Agent":
+          return ["uiAgent"];
+        default:
+          console.log(`Unknown agent: ${agentName}`);
+          return undefined;
+      }
+    }
+  }
 }); 
