@@ -5,9 +5,9 @@ export interface Message {
 }
 
 export interface ToolCall {
-  type: 'chart' | 'component';
+  type: 'chart' | 'component' | 'conversation';
   name: string;
-  data: ChartData | ComponentData;
+  data: ChartData | ComponentData | ConversationData;
 }
 
 export interface ChartData {
@@ -26,6 +26,19 @@ export interface ComponentData {
   components?: Array<UIComponent>;
   layout?: string;
   theme?: string;
+}
+
+export interface ConversationData {
+  channel: string;
+  messages: Array<SlackMessage>;
+}
+
+export interface SlackMessage {
+  user?: string;
+  text?: string;
+  ts?: string;
+  type?: string;
+  subtype?: string;
 }
 
 export interface UIComponent {

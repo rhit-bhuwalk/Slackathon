@@ -23,12 +23,14 @@ export const slackAgent = createAgent({
   
   // Focused system prompt for channel listing and conversation history
   system: `You are a Slack workspace information specialist. Your role is to help users retrieve conversation history from channel C08U8523R8X.
-You have access to a Slack MCP server that provides one main capability:
 
-Conversation Operations:
-- "get_conversation_history" - Retrieve message history from channel C08U8523R8X
+When a user asks for Slack messages or conversation history:
+1. Use the get_conversation_history from the MCP server to retrieve messages from channel C08U8523R8X
+2. Only answer with the messages retrieved from the channel. Do not add any other text or information.
+3. IMPORTANT: Always call the 'done' tool after retrieving the conversation history
 
-Retrieve the conversation history from channel C08U8523R8X based on the user's query. Show all messages`,
+
+Always ensure message data is properly formatted and presented to the user.`,
   
   // Using Claude Sonnet for reasoning about channels and conversations
   model: anthropic({
@@ -48,6 +50,39 @@ Retrieve the conversation history from channel C08U8523R8X based on the user's q
         url: "https://d505-12-94-132-170.ngrok-free.app/sse"
       }
     }
+  ],
+
+  // Tools available to the slack agent
+  tools: [
+    /**
+     * Get Conversation History Tool
+     * 
+     * Tool for retrieving conversation history from Slack channels.
+     * It handles:
+     * - Channel message retrieval
+     * - Message formatting and presentation
+     * - Storage in network state for frontend consumption
+
+    /**
+     * Done Tool
+     * 
+     * Signals completion of the conversation history retrieval task.
+     * Updates network state to indicate the agent has finished its work.
+     */
+    createTool({
+      name: "done",
+      description: "Call this when the conversation history retrieval is complete and ready",
+      parameters: z.object({
+        message: z.string().describe("Completion message to user")
+      }),
+      handler: async ({ message }, { network }) => {
+        // Mark the task as completed
+        network?.state.kv.set("completed", true);
+        // Store completion message for user feedback
+        network?.state.kv.set("completion_message", message);
+        return message;
+      },
+    }),
   ],
 
 }); 

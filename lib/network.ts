@@ -23,11 +23,13 @@ export interface NetworkState {
   
   // === Result States ===
   // Specifies the type of result produced ("chart" or "component")
-  result_type?: "chart" | "component";
+  result_type?: "chart" | "component" | "conversation";
   // Stores chart configuration and data when a chart is generated
   chart_result?: any;
   // Stores UI component configuration when a UI component is generated
   ui_result?: any;
+  // Stores conversation history when Slack messages are retrieved
+  conversation_result?: any;
   
   // === Completion States ===
   // Boolean flag indicating if an agent has finished its work

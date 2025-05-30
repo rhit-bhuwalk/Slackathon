@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       const completionMessage = result.state.kv.get("completion_message");
       const finalSummary = result.state.kv.get("final_summary");
       const chartResult = result.state.kv.get("chart_result");
+      const conversationResult = result.state.kv.get("conversation_result");
       
       // Debug logging to understand state values
       console.log('State values:', {
@@ -77,7 +78,8 @@ export async function POST(req: Request) {
         finalSummary,
         routedTo: result.state.kv.get("routed_to"),
         taskCompleted: result.state.kv.get("task_completed"),
-        chartResult: chartResult ? 'Chart data present' : 'No chart data'
+        chartResult: chartResult ? 'Chart data present' : 'No chart data',
+        conversationResult: conversationResult ? 'Conversation data present' : 'No conversation data'
       });
   
       // === Response Message Creation ===
@@ -110,6 +112,14 @@ export async function POST(req: Request) {
             data: uiData
           };
         }
+      }
+      // If conversation history was retrieved, attach conversation data
+      else if (completed && resultType === "conversation" && conversationResult) {
+        botMessage.toolCall = {
+          type: 'conversation',
+          name: 'get_conversation_history',
+          data: conversationResult
+        };
       }
       
       // Return the structured response to the frontend
