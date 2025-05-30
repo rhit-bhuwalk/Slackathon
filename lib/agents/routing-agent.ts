@@ -131,9 +131,10 @@ Always route to exactly one agent based on the primary intent of the request.`,
       // Check if we already have a result in the network state
       const chartResult = network?.state.kv.get("chart_result");
       const uiResult = network?.state.kv.get("ui_result");
+      const conversationResult = network?.state.kv.get("conversation_result");
       
-      if (chartResult || uiResult) {
-        console.log('Task already completed - chart or UI result exists in state');
+      if (chartResult || uiResult || conversationResult) {
+        console.log('Task already completed - result exists in state');
         // Set completion flags
         network?.state.kv.set("completed", true);
         network?.state.kv.set("task_completed", true);
@@ -143,6 +144,9 @@ Always route to exactly one agent based on the primary intent of the request.`,
         } else if (uiResult) {
           network?.state.kv.set("completion_message", "UI component has been successfully generated!");
           network?.state.kv.set("final_summary", "UI generation completed");
+        } else if (conversationResult) {
+          network?.state.kv.set("completion_message", "Slack conversation history has been retrieved!");
+          network?.state.kv.set("final_summary", "Slack conversation retrieval completed");
         }
         // Return undefined to stop routing
         return undefined;
