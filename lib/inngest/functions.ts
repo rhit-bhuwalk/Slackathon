@@ -1,10 +1,11 @@
 import { inngest } from "./client";
+import { assistantNetwork } from "@/lib/network";
 
-export const databaseAgentFunction = inngest.createFunction(
+export const networkFunction = inngest.createFunction(
   { id: "database-agent" },
-  { event: "database.agent" },
+  { event: "email.agent" },
   async ({ event, step }) => {
-    // Placeholder database agent function
+    await assistantNetwork.run(event.data.input);
     return { success: true };
   }
-); 
+);

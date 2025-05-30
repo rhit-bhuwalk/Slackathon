@@ -5,4 +5,4 @@ export const agentKitServer = createServer({
   networks: [assistantNetwork],
 });
 
-// Note: Server is started by scripts/start-agentkit.ts, not automatically 
+agentKitServer.listen(3010, () => console.log("Agent kit running!"));
