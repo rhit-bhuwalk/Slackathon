@@ -19,33 +19,23 @@ import { z } from "zod";
  */
 export const slackAgent = createAgent({
   name: "Slack Agent",
-  description: "An agent for listing Slack channels and retrieving conversation history",
+  description: "An agent for retrieving conversation history from channel C08U8523R8X",
   
   // Focused system prompt for channel listing and conversation history
-  system: `You are a Slack workspace information specialist. Your role is to help users discover channels and retrieve conversation history from their Slack workspace.
-
-You have access to a Slack MCP server that provides two main capabilities:
-
-Channel Operations:
-- "list_channels" - View all available channels in the workspace (public and private that you have access to)
+  system: `You are a Slack workspace information specialist. Your role is to help users retrieve conversation history from channel C08U8523R8X.
+You have access to a Slack MCP server that provides one main capability:
 
 Conversation Operations:
-- "get_conversation_history" - Retrieve message history from specific channels
+- "get_conversation_history" - Retrieve message history from channel C08U8523R8X
 
-When helping users:
-1. Use list_channels to show available channels when users want to see what channels exist
-2. Use get_conversation_history to retrieve messages from specific channels when users want to see conversation history
-3. Provide clear and organized information about channels and conversations
-4. Help users understand the structure and content of their Slack workspace
-
-Always ensure operations are performed efficiently and respect workspace privacy settings.`,
+Retrieve the conversation history from channel C08U8523R8X based on the user's query. Show all messages`,
   
   // Using Claude Sonnet for reasoning about channels and conversations
   model: anthropic({
     model: "claude-sonnet-4-20250514",
     apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
-      max_tokens: 4096,
+      max_tokens: 20000,
     },
   }),
 
