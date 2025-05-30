@@ -1,6 +1,7 @@
 import { createNetwork, anthropic } from "@inngest/agent-kit";
 import { routingAgent } from "./agents/routing-agent";
 import { emailAgent } from "./agents/email-agent";
+import { chartAgent } from "./agents/chart-agent";
 
 /**
  * Network State Interface
@@ -50,15 +51,17 @@ export interface NetworkState {
 export const assistantNetwork = createNetwork<NetworkState>({
   name: "Kush's Support System",
   // Array of specialist agents that can be invoked by the router
-  agents: [emailAgent],
+  agents: [emailAgent, chartAgent],
   // The routing agent that analyzes requests and directs them to specialists
   router: routingAgent,
+  // Maximum iterations to prevent infinite loops
+  maxIter: 10,
   // Default model configuration used by agents that don't specify their own model
   defaultModel: anthropic({
     model: "claude-sonnet-4-20250514",
     apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
-      max_tokens: 1000,
+      max_tokens: 4000,
     },
   }),
 }); 

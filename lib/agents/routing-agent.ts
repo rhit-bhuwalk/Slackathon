@@ -25,7 +25,7 @@ export const routingAgent = createRoutingAgent({
   description: "Routes user requests to appropriate specialist agents",
   
   // Detailed system prompt that defines the routing behavior and decision criteria
-  system: `You are a routing supervisor for a multi-agent system that can generate charts and UI components.
+  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, and manage emails.
 
 Your role is to analyze user requests and route them to the appropriate specialist agent:
 
@@ -36,7 +36,14 @@ Your role is to analyze user requests and route them to the appropriate speciali
    - Statistical visualizations
    - Data analysis displays
 
-2. **UI Agent** - Route here for:
+2. **Email Agent** - Route here for:
+   - Email sending and composing
+   - Email searching and reading
+   - Email management (labels, drafts, etc.)
+   - Gmail-related operations
+   - Email automation requests
+
+3. **UI Agent** - Route here for:
    - User interface creation
    - Component generation (forms, cards, modals, tables, etc.)
    - Layout design
@@ -47,15 +54,15 @@ Your role is to analyze user requests and route them to the appropriate speciali
 
 Decision process:
 1. Analyze the user's request
-2. Determine if they want data visualization (charts) or interface components (UI)
+2. Determine if they want data visualization (charts), email operations (email), or interface components (UI)
 3. Route to the appropriate agent using the route_to_agent tool
-4. If both agents have completed their work, call the done tool
+4. If the agent has completed their work, call the done tool
 
 Always route to exactly one agent based on the primary intent of the request.`,
   
   // Using Claude Haiku for fast routing decisions
   model: anthropic({
-    model: "claude-3-5-haiku-latest",
+    model: "claude-sonnet-4-20250514",
     apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
       max_tokens: 1000,
@@ -74,7 +81,7 @@ Always route to exactly one agent based on the primary intent of the request.`,
       name: "route_to_agent",
       description: "Route the request to the appropriate specialist agent",
       parameters: z.object({
-        agent: z.enum(["Chart Generator Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
+        agent: z.enum(["Chart Generator Agent", "Email Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
         reasoning: z.string().describe("Explanation for why this agent was chosen")
       }),
       handler: async ({ agent, reasoning }, { network }) => {
@@ -101,6 +108,11 @@ Always route to exactly one agent based on the primary intent of the request.`,
         // Mark task as completed and store final summary
         network?.state.kv.set("task_completed", true);
         network?.state.kv.set("final_summary", summary);
+        
+        // Also set the completed flag for consistency
+        network?.state.kv.set("completed", true);
+        network?.state.kv.set("completion_message", summary);
+        
         return summary;
       },
     }),
@@ -115,23 +127,59 @@ Always route to exactly one agent based on the primary intent of the request.`,
    */
   lifecycle: {
     onRoute: ({ result, network }) => {
+      console.log('=== ROUTING DEBUG ===');
+      console.log('Result:', JSON.stringify(result, null, 2));
+      console.log('Tool calls:', result.toolCalls);
+      
+      // Check if we already have a result in the network state
+      const chartResult = network?.state.kv.get("chart_result");
+      const uiResult = network?.state.kv.get("ui_result");
+      
+      if (chartResult || uiResult) {
+        console.log('Task already completed - chart or UI result exists in state');
+        // Set completion flags
+        network?.state.kv.set("completed", true);
+        network?.state.kv.set("task_completed", true);
+        if (chartResult) {
+          network?.state.kv.set("completion_message", "Chart has been successfully generated!");
+          network?.state.kv.set("final_summary", "Chart generation completed");
+        } else if (uiResult) {
+          network?.state.kv.set("completion_message", "UI component has been successfully generated!");
+          network?.state.kv.set("final_summary", "UI generation completed");
+        }
+        // Return undefined to stop routing
+        return undefined;
+      }
+      
       // Extract the first tool call from the routing agent's response
       const toolCall = result.toolCalls?.[0];
       
       // If the routing agent called route_to_agent, extract the target agent name
-      if (toolCall?.tool.name === "route_to_agent" && toolCall.content) {
-        const agentName = (toolCall.content as any).data;
-        // Return array with agent name to invoke that specific agent
-        return [agentName];
+      if (toolCall?.tool.name === "route_to_agent") {
+        // The agent name is in the original tool input from the LLM response
+        // We need to look at the actual tool use in the output
+        const toolUse = result.output?.find((o: any) => o.type === 'tool_call');
+        const agentName = (toolUse as any)?.tools?.[0]?.input?.agent as string | undefined;
+        
+        console.log('Tool use found:', toolUse);
+        console.log('Agent name extracted:', agentName);
+        console.log('Available agents:', Array.from(network?.agents.keys() || []));
+        
+        if (agentName) {
+          // Return array with agent name to invoke that specific agent
+          return [agentName] as string[];
+        }
       }
       
       // If the routing agent called done, don't route anywhere (end the workflow)
       if (toolCall?.tool.name === "done") {
-        return;
+        console.log('Routing complete - done tool called');
+        return undefined;
       }
       
       // Default: don't route anywhere
-      return;
+      console.log('No routing - no valid agent name found');
+      return undefined;
     },
   },
 }); 

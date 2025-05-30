@@ -72,7 +72,7 @@ Always ensure email operations are performed safely and efficiently, respecting 
   
   // Using Claude Sonnet for complex email reasoning and workflow management
   model: anthropic({
-    model: "claude-3-5-sonnet-latest",
+    model: "claude-sonnet-4-20250514",
     apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
       max_tokens: 4096,

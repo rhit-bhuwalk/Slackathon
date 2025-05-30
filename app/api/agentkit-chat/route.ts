@@ -58,6 +58,7 @@ export async function POST(req: Request) {
       const result = await assistantNetwork.run(latestMessage.content);
       
       console.log('AgentKit result:', result);
+      console.log('State data:', result.state.data);
       
       // === State Extraction ===
       // Access the network state using the kv.get() API to retrieve data
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       const completed = result.state.kv.get("completed");
       const completionMessage = result.state.kv.get("completion_message");
       const finalSummary = result.state.kv.get("final_summary");
+      const chartResult = result.state.kv.get("chart_result");
       
       // Debug logging to understand state values
       console.log('State values:', {
@@ -74,7 +76,8 @@ export async function POST(req: Request) {
         completionMessage,
         finalSummary,
         routedTo: result.state.kv.get("routed_to"),
-        taskCompleted: result.state.kv.get("task_completed")
+        taskCompleted: result.state.kv.get("task_completed"),
+        chartResult: chartResult ? 'Chart data present' : 'No chart data'
       });
   
       // === Response Message Creation ===
@@ -90,15 +93,12 @@ export async function POST(req: Request) {
       // Add specialized data based on which agent completed the task
       
       // If a chart was generated, attach chart data for frontend rendering
-      if (completed && resultType === "chart") {
-        const chartData = result.state.kv.get("chart_result");
-        if (chartData) {
-          botMessage.toolCall = {
-            type: 'chart',
-            name: 'generate_chart',
-            data: chartData
-          };
-        }
+      if (completed && resultType === "chart" && chartResult) {
+        botMessage.toolCall = {
+          type: 'chart',
+          name: 'generate_chart',
+          data: chartResult
+        };
       } 
       // If a UI component was generated, attach component data
       else if (completed && resultType === "component") {

@@ -40,13 +40,16 @@ When a user asks for a chart:
 1. Determine the appropriate chart type
 2. Structure the data properly
 3. Use the generate_chart tool to create it
-4. Provide helpful context about the chart
+4. IMPORTANT: Always call the 'done' tool after generating the chart
+5. Provide helpful context about the chart
 
-Always ensure data is properly formatted for the chosen chart type.`,
+Always ensure data is properly formatted for the chosen chart type.
+If the user doesn't provide specific data, create realistic sample data.`,
   
   // Using Claude Sonnet for more complex reasoning about data visualization
   model: anthropic({
-    model: "claude-3-5-sonnet-latest",
+    model: "claude-sonnet-4-20250514",
+    apiKey: process.env.ANTHROPIC_API_KEY,
     defaultParameters: {
       max_tokens: 4096,
     },
