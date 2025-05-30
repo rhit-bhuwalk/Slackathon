@@ -36,15 +36,14 @@ Available chart types:
 - PIE CHARTS: pie, pie-donut, pie-donut-text
 - ADVANCED: radar, radial
 
-When a user asks for a chart:
-1. Determine the appropriate chart type
-2. Structure the data properly
-3. Use the generate_chart tool to create it
+When generating a chart:
+1. First check if prepared_chart_data exists in the network state (from BEM Data Cleaner)
+2. If prepared data exists, use it directly with generate_chart_from_prepared_data
+3. Otherwise, use the standard generate_chart tool
 4. IMPORTANT: Always call the 'done' tool after generating the chart
 5. Provide helpful context about the chart
 
-Always ensure data is properly formatted for the chosen chart type.
-If the user doesn't provide specific data, create realistic sample data.`,
+The prepared data from BEM will already have the correct structure and format.`,
   
   // Using Claude Sonnet for more complex reasoning about data visualization
   model: anthropic({
@@ -57,6 +56,36 @@ If the user doesn't provide specific data, create realistic sample data.`,
   
   // Tools available to the chart agent
   tools: [
+    /**
+     * Generate Chart from Prepared Data Tool
+     * 
+     * Uses pre-cleaned and structured data from BEM Data Cleaner Agent
+     */
+    createTool({
+      name: "generate_chart_from_prepared_data",
+      description: "Generate a chart using prepared data from BEM Data Cleaner Agent",
+      parameters: z.object({
+        useNetworkData: z.boolean().describe("Whether to use prepared_chart_data from network state")
+      }),
+      handler: async ({ useNetworkData }, { network }) => {
+        if (!useNetworkData) {
+          return "Please set useNetworkData to true to use prepared data.";
+        }
+        
+        const preparedData = network?.state.kv.get("prepared_chart_data");
+        if (!preparedData) {
+          return "No prepared chart data found. Please use the standard generate_chart tool.";
+        }
+        
+        // Store chart result in network state for API to retrieve
+        network?.state.kv.set("chart_result", preparedData);
+        // Mark result type as chart for proper handling in the API
+        network?.state.kv.set("result_type", "chart");
+        
+        return `Created ${preparedData.type} chart titled "${preparedData.title}" with ${preparedData.data.length} cleaned data points from BEM.`;
+      },
+    }),
+    
     /**
      * Generate Chart Tool
      * 

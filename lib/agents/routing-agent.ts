@@ -25,25 +25,41 @@ export const routingAgent = createRoutingAgent({
   description: "Routes user requests to appropriate specialist agents",
   
   // Detailed system prompt that defines the routing behavior and decision criteria
-  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, and manage emails.
+  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, manage emails, help pick visualizations, provide data, and clean data.
 
 Your role is to analyze user requests and route them to the appropriate specialist agent:
 
 1. **Chart Agent** - Route here for:
-   - Data visualization requests
-   - Chart creation (bar, line, pie, area, radar, etc.)
-   - Graph generation
-   - Statistical visualizations
-   - Data analysis displays
+   - Direct chart creation when clean, prepared data is already available
+   - Final chart generation after data has been cleaned
+   - When prepared_chart_data exists in state
 
-2. **Email Agent** - Route here for:
+2. **Chart Picker Agent** - Route here for:
+   - When user asks what type of chart they should use
+   - Questions about which visualization is best for their data
+   - Initial requests for data visualization (starts the pipeline)
+   - When user wants to understand chart schema/requirements
+
+3. **Data Agent** - Route here for:
+   - When user needs sample data for visualization
+   - Data generation requests
+   - After chart type is picked but before BEM cleaning
+   - When picked_chart exists but no raw data is available
+
+4. **BEM Data Cleaner Agent** - Route here for:
+   - After Data Agent has provided raw data
+   - When raw data needs to be transformed to match chart requirements
+   - Data cleaning and structuring tasks
+   - When both picked_chart and data_result exist
+
+5. **Email Agent** - Route here for:
    - Email sending and composing
    - Email searching and reading
    - Email management (labels, drafts, etc.)
    - Gmail-related operations
    - Email automation requests
 
-3. **UI Agent** - Route here for:
+6. **UI Agent** - Route here for:
    - User interface creation
    - Component generation (forms, cards, modals, tables, etc.)
    - Layout design
@@ -52,13 +68,20 @@ Your role is to analyze user requests and route them to the appropriate speciali
    - Settings pages
    - Authentication interfaces
 
-Decision process:
-1. Analyze the user's request
-2. Determine if they want data visualization (charts), email operations (email), or interface components (UI)
-3. Route to the appropriate agent using the route_to_agent tool
-4. If the agent has completed their work, call the done tool
+DATA VISUALIZATION PIPELINE:
+1. User requests visualization → Chart Picker Agent (determines chart type & schema)
+2. Chart schema exists → Data Agent (generates or fetches raw data)
+3. Raw data available → BEM Data Cleaner Agent (creates pipeline & transforms data)
+4. Clean data ready → Chart Agent (generates the final visualization)
 
-Always route to exactly one agent based on the primary intent of the request.`,
+Decision process:
+1. Check the network state for existing results and progress
+2. For visualization requests, follow the pipeline sequence
+3. Route to the next appropriate agent in the workflow
+4. If the agent has completed their work, check if more steps are needed
+5. Call the done tool only when the entire pipeline is complete
+
+Always route to exactly one agent based on the current state and workflow progress.`,
   
   // Using Claude Haiku for fast routing decisions
   model: anthropic({
@@ -81,7 +104,7 @@ Always route to exactly one agent based on the primary intent of the request.`,
       name: "route_to_agent",
       description: "Route the request to the appropriate specialist agent",
       parameters: z.object({
-        agent: z.enum(["Chart Generator Agent", "Email Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
+        agent: z.enum(["Chart Generator Agent", "Chart Picker Agent", "BEM Data Cleaner Agent", "Data Agent", "Email Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
         reasoning: z.string().describe("Explanation for why this agent was chosen")
       }),
       handler: async ({ agent, reasoning }, { network }) => {
@@ -134,9 +157,14 @@ Always route to exactly one agent based on the primary intent of the request.`,
       // Check if we already have a result in the network state
       const chartResult = network?.state.kv.get("chart_result");
       const uiResult = network?.state.kv.get("ui_result");
+      const pickedChart = network?.state.kv.get("picked_chart");
+      const dataResult = network?.state.kv.get("data_result");
+      const cleanedData = network?.state.kv.get("cleaned_data");
+      const preparedChartData = network?.state.kv.get("prepared_chart_data");
       
+      // Check for final results
       if (chartResult || uiResult) {
-        console.log('Task already completed - chart or UI result exists in state');
+        console.log('Task already completed - final result exists in state');
         // Set completion flags
         network?.state.kv.set("completed", true);
         network?.state.kv.set("task_completed", true);
@@ -149,6 +177,22 @@ Always route to exactly one agent based on the primary intent of the request.`,
         }
         // Return undefined to stop routing
         return undefined;
+      }
+      
+      // Check pipeline progress for visualization workflow
+      if (pickedChart && !dataResult) {
+        console.log('Chart type picked, routing to Data Agent for data generation');
+        return ["Data Agent"];
+      }
+      
+      if (pickedChart && dataResult && !cleanedData) {
+        console.log('Chart type and raw data available, routing to BEM Data Cleaner for transformation');
+        return ["BEM Data Cleaner Agent"];
+      }
+      
+      if (preparedChartData && !chartResult) {
+        console.log('Data cleaned and prepared, routing to Chart Agent for visualization');
+        return ["Chart Generator Agent"];
       }
       
       // Extract the first tool call from the routing agent's response
