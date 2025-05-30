@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BadgeProps",
+  "type": "object",
+  "properties": {
+    "variant": {
+      "type": "string",
+      "enum": [
+        "default",
+        "secondary",
+        "destructive",
+        "outline"
+      ],
+      "description": "The visual style variant of the badge"
+    },
+    "className": {
+      "type": "string",
+      "description": "Additional CSS classes"
+    },
+    "children": {
+      "type": "string",
+      "description": "Badge content"
+    }
+  }
+}

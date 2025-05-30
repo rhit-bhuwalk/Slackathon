@@ -1,0 +1,12 @@
+{
+  "$ref": "#/definitions/CalendarProps",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "CalendarProps": {
+      "$ref": "#/definitions/React.ComponentProps%3Cfunction%3E"
+    },
+    "React.ComponentProps<function>": {
+      "description": "NOTE: prefer ComponentPropsWithRef, if the ref is forwarded, or ComponentPropsWithoutRef when refs are not supported."
+    }
+  }
+}

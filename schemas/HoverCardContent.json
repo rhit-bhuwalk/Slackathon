@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "HoverCardContent Props",
+  "description": "Props for HoverCardContent component",
+  "properties": {
+    "className": {
+      "type": "string",
+      "description": "Additional CSS classes"
+    },
+    "children": {
+      "type": [
+        "string",
+        "object"
+      ],
+      "description": "Child content"
+    }
+  },
+  "additionalProperties": true
+}
