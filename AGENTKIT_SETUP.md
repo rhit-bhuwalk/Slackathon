@@ -24,8 +24,8 @@ This single command starts everything you need:
 1. **Open your browser** to http://localhost:3000
 2. **Try these example queries:**
    - "Create a bar chart of monthly sales data"
-   - "Send an email to john@example.com about our meeting"
    - "Generate a pie chart showing user demographics"
+   - "Create a line chart for quarterly revenue"
 
 3. **Monitor the execution** at http://localhost:8288/functions
    - You'll see the routing agent analyzing your request
@@ -70,7 +70,6 @@ This single command starts everything you need:
 
 Your network includes:
 - **Routing Agent** - Analyzes requests and routes to specialists
-- **Email Agent** - Handles Gmail operations 
 - **Chart Agent** - Creates data visualizations
 
 ## 🔍 Viewing Agent Execution
@@ -85,7 +84,7 @@ Your network includes:
 1. **User sends message** → Next.js API (`/api/agentkit-chat`)
 2. **API calls** → `assistantNetwork.run(message)`
 3. **Routing Agent** → Analyzes request with Anthropic Claude
-4. **Routes to specialist** → Chart Agent or Email Agent
+4. **Routes to specialist** → Chart Agent
 5. **Specialist executes** → Makes its own Anthropic API call
 6. **Stores results** → In network state (key-value store)
 7. **Returns to frontend** → Structured response with chart/UI data

@@ -1,7 +1,7 @@
 import { createNetwork, anthropic } from "@inngest/agent-kit";
 import { routingAgent } from "./agents/routing-agent";
-import { emailAgent } from "./agents/email-agent";
 import { chartAgent } from "./agents/chart-agent";
+import { slackAgent } from "./agents/slack-agent";
 
 /**
  * Network State Interface
@@ -51,7 +51,7 @@ export interface NetworkState {
 export const assistantNetwork = createNetwork<NetworkState>({
   name: "Kush's Support System",
   // Array of specialist agents that can be invoked by the router
-  agents: [emailAgent, chartAgent],
+  agents: [chartAgent, slackAgent],
   // The routing agent that analyzes requests and directs them to specialists
   router: routingAgent,
   // Maximum iterations to prevent infinite loops

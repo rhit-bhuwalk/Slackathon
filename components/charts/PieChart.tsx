@@ -43,7 +43,7 @@ export default function PieChart({ chartData }: PieChartProps) {
             innerRadius={isDonut ? 40 : 0}
             outerRadius={80}
             dataKey={yKey}
-            label={!hasText ? ({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%` : false}
+            label={!hasText ? ({ name, percent }: { name: string; percent: number }) => `${name}: ${(percent * 100).toFixed(0)}%` : false}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

@@ -25,7 +25,7 @@ export const routingAgent = createRoutingAgent({
   description: "Routes user requests to appropriate specialist agents",
   
   // Detailed system prompt that defines the routing behavior and decision criteria
-  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, and manage emails.
+  system: `You are a routing supervisor for a multi-agent system that can generate charts, UI components, and manage Slack.
 
 Your role is to analyze user requests and route them to the appropriate specialist agent:
 
@@ -36,12 +36,9 @@ Your role is to analyze user requests and route them to the appropriate speciali
    - Statistical visualizations
    - Data analysis displays
 
-2. **Email Agent** - Route here for:
-   - Email sending and composing
-   - Email searching and reading
-   - Email management (labels, drafts, etc.)
-   - Gmail-related operations
-   - Email automation requests
+2. **Slack Agent** - Route here for:
+    - Slack channel listing
+    - Slack conversation history retrieval
 
 3. **UI Agent** - Route here for:
    - User interface creation
@@ -54,7 +51,7 @@ Your role is to analyze user requests and route them to the appropriate speciali
 
 Decision process:
 1. Analyze the user's request
-2. Determine if they want data visualization (charts), email operations (email), or interface components (UI)
+2. Determine if they want data visualization (charts) or interface components (UI)
 3. Route to the appropriate agent using the route_to_agent tool
 4. If the agent has completed their work, call the done tool
 
@@ -81,7 +78,7 @@ Always route to exactly one agent based on the primary intent of the request.`,
       name: "route_to_agent",
       description: "Route the request to the appropriate specialist agent",
       parameters: z.object({
-        agent: z.enum(["Chart Generator Agent", "Email Agent", "UI Generator Agent"]).describe("The agent to route the request to"),
+        agent: z.enum(["Chart Generator Agent", "UI Generator Agent", "Slack Agent"]).describe("The agent to route the request to"),
         reasoning: z.string().describe("Explanation for why this agent was chosen")
       }),
       handler: async ({ agent, reasoning }, { network }) => {
