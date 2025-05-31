@@ -76,5 +76,18 @@ Common data patterns:
         return reason;
       },
     }),
+
+    createTool({
+      name: "clean_data",
+      description: "Placeholder tool – records that data cleaning is required and signals the Routing Agent to invoke the BEM Data Cleaner Agent.",
+      parameters: z.object({
+        reason: z.string().describe("Why data cleaning is required")
+      }),
+      handler: async ({ reason }, { network }) => {
+        network?.state.kv.set("need_data_cleaning", true);
+        network?.state.kv.set("data_cleaning_reason", reason);
+        return `Data cleaning requested: ${reason}. The Routing Agent should now route to the BEM Data Cleaner Agent.`;
+      },
+    }),
   ],
 }); 

@@ -136,6 +136,50 @@ Always route to exactly one agent based on the current state and workflow progre
         return summary;
       },
     }),
+    
+    /**
+     * Generate Data Tool (Placeholder)
+     * 
+     * Some LLM outputs may incorrectly attempt to call a "generate_data" tool
+     * directly from the routing context.  This stub prevents runtime crashes
+     * by accepting the call, storing an intent flag in network state, and
+     * instructing the router (via onRoute logic already present) to send the
+     * request to the actual Data Agent which owns data generation.
+     */
+    createTool({
+      name: "generate_data",
+      description: "Placeholder tool that records a request to generate data and signals that the Data Agent should be invoked next.",
+      parameters: z.object({
+        reason: z.string().describe("Why data generation is required")
+      }),
+      handler: async ({ reason }, { network }) => {
+        network?.state.kv.set("need_data_generation", true);
+        network?.state.kv.set("data_generation_reason", reason);
+        return `Data generation requested: ${reason}. Routing Agent will now route to the Data Agent.`;
+      },
+    }),
+
+    /**
+     * Clean Data Tool (Placeholder)
+     * 
+     * Some LLM outputs may incorrectly attempt to call a "clean_data" tool
+     * directly from the routing context.  This stub prevents runtime crashes
+     * by accepting the call, storing an intent flag in network state, and
+     * instructing the router (via onRoute logic already present) to send the
+     * request to the actual BEM Data Cleaner Agent which owns data cleaning.
+     */
+    createTool({
+      name: "clean_data",
+      description: "Placeholder tool that records a request to clean data and signals the router to invoke the BEM Data Cleaner Agent.",
+      parameters: z.object({
+        reason: z.string().describe("Why data cleaning is required")
+      }),
+      handler: async ({ reason }, { network }) => {
+        network?.state.kv.set("need_data_cleaning", true);
+        network?.state.kv.set("data_cleaning_reason", reason);
+        return `Data cleaning requested: ${reason}. Routing Agent will now route to the BEM Data Cleaner Agent.`;
+      },
+    }),
   ],
   
   /**
@@ -186,27 +230,74 @@ Always route to exactly one agent based on the current state and workflow progre
       }
 
       if (!routeCall) {
-        console.log('No route call found');
+        console.log('No route call found – attempting automatic pipeline routing based on state');
+
+        // Automatic fallback routing for the visualization pipeline
+        const needDataCleaning = network?.state.kv.get("need_data_cleaning");
+
+        if (needDataCleaning && pickedChart && dataResult) {
+          console.log('Data cleaning requested – routing to BEM Data Cleaner Agent');
+          return ["BEM Data Cleaner Agent"];
+        }
+
+        if (preparedChartData && !chartResult) {
+          console.log('Prepared chart data detected – routing to Chart Generator Agent');
+          return ["Chart Generator Agent"];
+        }
+
+        // If we have a picked chart and cleaned data but no prepared data yet
+        if (pickedChart && cleanedData && !preparedChartData) {
+          console.log('Cleaned data detected – routing to BEM Data Cleaner Agent to prepare chart data');
+          return ["BEM Data Cleaner Agent"];
+        }
+
+        // If we have a picked chart and raw data but no cleaned data yet
+        if (pickedChart && dataResult && !cleanedData) {
+          console.log('Raw data detected – routing to BEM Data Cleaner Agent for cleaning');
+          return ["BEM Data Cleaner Agent"];
+        }
+
+        // If we have selected a chart but no data yet
+        if (pickedChart && !dataResult) {
+          console.log('Chart picked but no data – routing to Data Agent');
+          return ["Data Agent"];
+        }
+
         return undefined;
       }
 
-      const agentName = (routeCall as any).arguments?.agent;
+      // Attempt to read the agent name directly from the tool call first.
+      let agentName: string | undefined = (routeCall as any).arguments?.agent;
+
+      // The result.toolCalls array usually contains the *result* of the tool execution rather than the
+      // original input, which means the `arguments` field may be undefined.  The routing decision is
+      // persisted to the shared network state by the `route_to_agent` tool handler, so we fall back to
+      // reading it from there when it is not present on the tool call object.
+      if (!agentName) {
+        agentName = network?.state.kv.get("routed_to") as string | undefined;
+      }
+
       console.log(`Routing to agent: ${agentName}`);
+
+      if (!agentName) {
+        console.log('No agent name could be determined from tool call or state – aborting route.');
+        return undefined;
+      }
 
       // Map agent names to actual agent instances
       switch (agentName) {
         case "Chart Generator Agent":
-          return ["chartAgent"];
+          return ["Chart Generator Agent"];
         case "Chart Picker Agent":
-          return ["chartPickerAgent"];
+          return ["Chart Picker Agent"];
         case "BEM Data Cleaner Agent":
-          return ["bemDataCleanerAgent"];
+          return ["BEM Data Cleaner Agent"];
         case "Data Agent":
-          return ["dataAgent"];
+          return ["Data Agent"];
         case "Slack Agent":
-          return ["slackAgent"];
+          return ["Slack Agent"];
         case "UI Generator Agent":
-          return ["uiAgent"];
+          return ["UI Generator Agent"];
         default:
           console.log(`Unknown agent: ${agentName}`);
           return undefined;

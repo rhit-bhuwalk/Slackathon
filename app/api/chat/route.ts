@@ -173,7 +173,7 @@ export async function POST(req: Request) {
       
       // Call Anthropic API with tools
       const response = await anthropic.messages.create({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4096,
         messages: anthropicMessages,
         tools: tools,

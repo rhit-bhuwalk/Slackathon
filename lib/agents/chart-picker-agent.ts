@@ -164,5 +164,48 @@ Chart Schema:
         return summary;
       },
     }),
+    
+    /**
+     * Generate Data Tool (Placeholder)
+     * 
+     * Some model versions may incorrectly try to invoke a "generate_data" tool
+     * directly from the Chart Picker Agent. To avoid runtime errors, we expose
+     * a lightweight stub that simply records the need for data generation in
+     * the shared network state.  The Routing Agent will subsequently notice
+     * that a chart has been picked but no data_result exists and will route
+     * the request to the Data Agent, which owns the real data-generation
+     * capabilities ("provide_data" or "no_data_needed").
+     */
+    createTool({
+      name: "generate_data",
+      description: "Placeholder tool – records that data generation is required and signals the Routing Agent to invoke the Data Agent.",
+      parameters: z.object({
+        reason: z.string().describe("Why data generation is needed")
+      }),
+      handler: async ({ reason }, { network }) => {
+        // Mark in state that data generation is required
+        network?.state.kv.set("need_data_generation", true);
+        network?.state.kv.set("data_generation_reason", reason);
+        return `Acknowledged data generation requirement: ${reason}. The Routing Agent should now route to the Data Agent.`;
+      },
+    }),
+    
+    /**
+     * Clean Data Tool
+     * 
+     * Placeholder tool to provide feedback and avoid runtime errors when the agent mistakenly calls it.
+     */
+    createTool({
+      name: "clean_data",
+      description: "Placeholder tool – records that data cleaning is required and signals the Routing Agent to invoke the BEM Data Cleaner Agent.",
+      parameters: z.object({
+        reason: z.string().describe("Why data cleaning is required")
+      }),
+      handler: async ({ reason }, { network }) => {
+        network?.state.kv.set("need_data_cleaning", true);
+        network?.state.kv.set("data_cleaning_reason", reason);
+        return `Data cleaning requested: ${reason}. The Routing Agent should now route to the BEM Data Cleaner Agent.`;
+      },
+    }),
   ],
 }); 

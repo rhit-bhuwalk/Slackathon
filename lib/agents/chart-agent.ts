@@ -150,6 +150,47 @@ The prepared data from BEM will already have the correct structure and format.`,
     }),
     
     /**
+     * Generate Pie Chart Tool (Alias)
+     *
+     * Some model outputs may attempt to directly call a `generate_pie_chart` tool.  This
+     * helper simply delegates to the generic `generate_chart` handler with the `pie`
+     * type pre-selected so that these calls do not error at runtime.
+     */
+    createTool({
+      name: "generate_pie_chart",
+      description: "Alias for generate_chart with type fixed to 'pie' to prevent missing tool errors.",
+      parameters: z.object({
+        title: z.string().describe("Title for the chart"),
+        data: z.array(z.record(z.any())).describe("Array of data points for the chart"),
+        xKey: z.string().describe("Key for X-axis data"),
+        yKey: z.string().describe("Key for Y-axis data")
+      }),
+      handler: async ({ title, data, xKey, yKey }, { network }) => {
+        // Delegate to the core chart generation logic with the type preset to 'pie'.
+        const chartConfig = {
+          [yKey]: {
+            label: yKey.charAt(0).toUpperCase() + yKey.slice(1),
+            color: "hsl(var(--chart-1))",
+          },
+        };
+
+        const chartData = {
+          type: "pie",
+          title,
+          data,
+          xKey,
+          yKey,
+          config: chartConfig,
+        };
+
+        network?.state.kv.set("chart_result", chartData);
+        network?.state.kv.set("result_type", "chart");
+
+        return `Created pie chart titled "${title}" with ${data.length} data points.`;
+      },
+    }),
+    
+    /**
      * Done Tool
      * 
      * Signals completion of the chart generation task.
